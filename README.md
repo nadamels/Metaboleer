@@ -59,7 +59,6 @@ Edge colour in the viewer is the sign of the partial correlation; gold halo = p-
 
 * Imputation is the slow step (random forests; ~4 min for 300 samples × 220 features at the defaults).
   For quick looks use `--imputer-trees 20 --imputer-iter 2`.
-* The viewer loads d3 / jQuery / DataTables from CDNs, exactly like the reference page.
 
 Run the tests with `pytest`.
 
