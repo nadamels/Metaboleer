@@ -62,3 +62,5 @@ Edge colour in the viewer is the sign of the partial correlation; gold halo = p-
 * The viewer loads d3 / jQuery / DataTables from CDNs, exactly like the reference page.
 
 Run the tests with `pytest`.
+
+`Credits`: Fouad Azar, Nada Elsharkawy, Imane Mourjane
