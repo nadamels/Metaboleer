@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>__TITLE__</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<link rel="stylesheet" href="https://cdn.datatables.net/2.1.8/css/dataTables.dataTables.min.css" />
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.1.8/js/dataTables.min.js"></script>
+<style>
+  :root { --accent:#1f78b4; --accent2:#2a8fd0; --ink:#1c2330; --muted:#6b7484; }
+  html, body { margin: 0; height: 100%;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; color: var(--ink); }
+  #app { position: fixed; inset: 0;
+    background: radial-gradient(circle at 28% 18%, #ffffff 0%, #eef1f6 55%, #e1e6ee 100%); }
+  svg { width: 100%; height: 100%; display: block; cursor: grab; }
+  svg:active { cursor: grabbing; }
+
+  .panel {
+    position: fixed; top: 16px; left: 16px; z-index: 10; width: 268px;
+    background: rgba(255,255,255,0.9); backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(20,30,50,0.07); border-radius: 14px;
+    padding: 16px 18px; box-shadow: 0 10px 34px rgba(20,30,50,0.14);
+  }
+  .panel h1 { font-size: 15px; font-weight: 700; margin: 0; letter-spacing: 0.2px; }
+  .panel .sub { font-size: 11px; color: var(--muted); margin: 2px 0 4px; }
+
+  .group { margin-top: 14px; }
+  .ttl { display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--muted); margin-bottom: 6px; }
+  .ttl b { color: var(--accent); font-weight: 700; font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); cursor: pointer; height: 4px; }
+
+  button {
+    margin-top: 16px; font-size: 13px; font-weight: 600; padding: 9px 12px;
+    border-radius: 9px; border: none; color: #fff; cursor: pointer; width: 100%;
+    background: linear-gradient(180deg, var(--accent2), var(--accent));
+    box-shadow: 0 2px 7px rgba(31,120,180,0.35);
+    transition: transform .05s ease, box-shadow .15s ease;
+  }
+  button:hover { box-shadow: 0 5px 14px rgba(31,120,180,0.45); }
+  button:active { transform: translateY(1px); }
+
+  .cb { display: flex; align-items: center; gap: 8px; font-size: 12px; margin-top: 12px;
+    color: #3a4252; cursor: pointer; }
+  .cb input { accent-color: var(--accent); }
+
+  .divider { height: 1px; margin: 15px 0;
+    background: linear-gradient(90deg, transparent, #e2e6ec 18%, #e2e6ec 82%, transparent); }
+
+  .legend { font-size: 11px; color: #3a4252; }
+  .legend .lh { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--muted); margin: 10px 0 5px; }
+  .legend .lh:first-child { margin-top: 0; }
+  .legend .row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+  .swatch { width: 13px; height: 13px; border-radius: 50%; background: #dde2e9;
+    border: 2px solid #999; box-sizing: border-box; flex: none; }
+  .eline { width: 18px; height: 0; border-top-width: 3px; border-top-style: solid;
+    display: inline-block; border-radius: 2px; flex: none; }
+  .hint { margin-top: 12px; font-size: 10.5px; color: #9098a6; line-height: 1.5; }
+
+  .tooltip {
+    position: fixed; pointer-events: none; z-index: 20; background: rgba(17,22,33,0.96); color: #fff;
+    padding: 9px 11px; border-radius: 9px; font-size: 12px; line-height: 1.55; opacity: 0;
+    transition: opacity 0.12s; max-width: 260px; box-shadow: 0 8px 24px rgba(0,0,0,0.32);
+  }
+  .tooltip b { color: #7cc4f0; }
+  .tooltip .tag { display: inline-block; margin-top: 4px; padding: 1px 7px; border-radius: 10px;
+    font-size: 10.5px; font-weight: 600; background: #B2182B; color: #fff; }
+  .clabel { font-size: 12.5px; font-weight: 700; fill: #2a3042; paint-order: stroke;
+    stroke: #fff; stroke-width: 3.5px; pointer-events: none; text-transform: capitalize; }
+  .nlabel { font-size: 9px; fill: #3a4252; paint-order: stroke; stroke: #fff;
+    stroke-width: 3px; pointer-events: none; }
+
+  /* right-side data drawer */
+  .drawer-handle {
+    position: fixed; top: 50%; right: 0; transform: translateY(-50%); z-index: 29;
+    writing-mode: vertical-rl; text-orientation: mixed;
+    background: linear-gradient(180deg, var(--accent2), var(--accent)); color: #fff;
+    padding: 16px 9px; border-radius: 11px 0 0 11px; cursor: pointer; font-weight: 700;
+    font-size: 11.5px; letter-spacing: 1.5px; user-select: none;
+    box-shadow: -3px 0 14px rgba(31,120,180,0.4);
+  }
+  .drawer {
+    position: fixed; top: 0; right: 0; height: 100%; width: 580px; max-width: 92vw; z-index: 30;
+    background: rgba(255,255,255,0.97); backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px); border-left: 1px solid rgba(20,30,50,0.08);
+    box-shadow: -12px 0 38px rgba(20,30,50,0.18);
+    transform: translateX(100%); transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+    display: flex; flex-direction: column;
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer .dh { display: flex; align-items: center; justify-content: space-between;
+    padding: 15px 18px; border-bottom: 1px solid #eef0f3; }
+  .drawer .dh h2 { font-size: 14px; font-weight: 700; margin: 0; }
+  .close-x { background: none; border: none; box-shadow: none; color: #6b7484; font-size: 22px;
+    line-height: 1; width: auto; margin: 0; padding: 0 4px; cursor: pointer; }
+  .close-x:hover { color: var(--ink); box-shadow: none; }
+  .tabs { display: flex; gap: 8px; padding: 12px 18px 0; }
+  .tabs button { flex: 1; width: auto; margin: 0; background: #eef1f5; color: #3a4252; box-shadow: none; }
+  .tabs button.active { background: linear-gradient(180deg, var(--accent2), var(--accent)); color: #fff; }
+  .tabwrap { flex: 1; overflow: auto; padding: 10px 18px 20px; }
+  .tabpane { display: none; } .tabpane.active { display: block; }
+  table.dataTable { font-size: 12px; }
+  table.dataTable td, table.dataTable th { white-space: nowrap; }
+  .dt-container .dt-search input, .dt-container .dt-length select { font-size: 12px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="panel">
+  <h1>WGCNA &times; GGM network</h1>
+  <p class="sub">partial-correlation GGM, coloured by WGCNA module</p>
+
+  <div class="group">
+    <div class="ttl">Cluster pull <b id="pullVal">0%</b></div>
+    <input type="range" id="pull" min="0" max="100" value="0" step="1" />
+  </div>
+
+  <div class="group">
+    <div class="ttl">Trait assoc. &rarr; node size <b id="radiusVal">100%</b></div>
+    <input type="range" id="radius" min="0" max="100" value="100" step="1" />
+  </div>
+
+  <button id="toggle">Snap: GGM &harr; WGCNA clusters</button>
+  <label class="cb"><input type="checkbox" id="hulls" /> show cluster hulls</label>
+  <label class="cb"><input type="checkbox" id="labels" /> show all metabolite labels</label>
+
+  <div class="divider"></div>
+  <div class="legend" id="legend"></div>
+  <div class="hint">Drag nodes &middot; scroll to zoom &middot; hover a node to spotlight
+    its partial-correlation neighbours.</div>
+</div>
+
+<div class="drawer-handle" id="drawerHandle">DATA TABLES</div>
+<div class="drawer" id="drawer">
+  <div class="dh"><h2>Network data</h2><button class="close-x" id="drawerClose">&times;</button></div>
+  <div class="tabs">
+    <button id="tabNodes" class="active">Nodes</button>
+    <button id="tabEdges">Edges</button>
+  </div>
+  <div class="tabwrap">
+    <div class="tabpane active" id="paneNodes"><table id="nodeTable" class="display" style="width:100%"></table></div>
+    <div class="tabpane" id="paneEdges"><table id="edgeTable" class="display" style="width:100%"></table></div>
+  </div>
+</div>
+
+<div class="tooltip" id="tip"></div>
+<script>
+const GRAPH = __GRAPH_JSON__;
+
+const width = window.innerWidth, height = window.innerHeight;
+const svg = d3.select("#app").append("svg")
+  .attr("viewBox", [0, 0, width, height]);
+
+// soft drop shadow for nodes + glow for p-gain edges (visual depth)
+const defs = svg.append("defs");
+const sh = defs.append("filter").attr("id", "nshadow")
+  .attr("x", "-60%").attr("y", "-60%").attr("width", "220%").attr("height", "220%");
+sh.append("feDropShadow").attr("dx", 0).attr("dy", 1)
+  .attr("stdDeviation", 1.1).attr("flood-color", "#1b2740").attr("flood-opacity", 0.35);
+// Gold halo marks an edge as p-gain (independent of its blue/red direction
+// colour). Strong tier gets a bigger, denser halo than the suggestive tier.
+const goldHalo = (id, std, op) => {
+  const f = defs.append("filter").attr("id", id)
+    .attr("x", "-80%").attr("y", "-80%").attr("width", "260%").attr("height", "260%");
+  f.append("feDropShadow").attr("dx", 0).attr("dy", 0)
+    .attr("stdDeviation", std).attr("flood-color", "#E6AB02").attr("flood-opacity", op);
+};
+goldHalo("eglowStrong", 3.0, 0.95);
+goldHalo("eglowSugg", 1.8, 0.7);
+
+const root = svg.append("g");
+const tip = d3.select("#tip");
+
+// Zoom / pan
+svg.call(d3.zoom().scaleExtent([0.15, 6]).on("zoom", (ev) => {
+  root.attr("transform", ev.transform);
+}));
+
+// ---- cluster anchors ----
+// Modules are placed by phenotype-association significance (adj_p): the most
+// significant module sits at the centre, and the rest spiral outward (golden-
+// angle phyllotaxis), so "important" clusters end up in the middle.
+const modSig = m => {
+  const s = GRAPH.modstats && GRAPH.modstats[m];
+  return (s && s.p != null) ? s.p : Infinity;
+};
+const modules = Array.from(new Set(GRAPH.nodes.map(d => d.module)))
+  .sort((a, b) => modSig(a) - modSig(b));
+const cx = width / 2, cy = height / 2;
+const spreadR = Math.min(width, height) * 0.42;
+const GOLDEN = Math.PI * (3 - Math.sqrt(5));
+const nMod = modules.length;
+const anchors = {};
+modules.forEach((m, i) => {
+  const radius = spreadR * Math.sqrt(i / Math.max(1, nMod - 1));
+  const angle  = i * GOLDEN;
+  anchors[m] = { x: cx + radius * Math.cos(angle), y: cy + radius * Math.sin(angle) };
+});
+
+// ---- scales ----
+const maxAbsTC = d3.max(GRAPH.nodes, d => Math.abs(d.traitCor || 0)) || 1;
+// traitWeight (0..1) controls how strongly trait association drives node radius.
+// The slider raises BOTH the size span AND a contrast exponent (gamma): higher
+// settings make strongly-associated metabolites look dramatically larger than
+// weakly-associated ones (large > small is exaggerated, not compressed).
+let traitWeight = 1;
+const BASE_R = 4, SPAN_R = 24;
+const nodeR = d => {
+  const ratio = Math.abs(d.traitCor || 0) / maxAbsTC;   // 0..1
+  const gamma = 0.6 + 2.8 * traitWeight;                // 0.6 (flat) .. 3.4 (high contrast)
+  const span  = SPAN_R * traitWeight;                   // 0 -> uniform size
+  return BASE_R + span * Math.pow(ratio, gamma);
+};
+const vipStroke = { "none": "#cfcfcf", "VIP1-2": "#FDD0A2", "VIP2-3": "#FD8D3C", "VIP>=3": "#B2182B" };
+const vipStrokeW = { "none": 0.8, "VIP1-2": 1.8, "VIP2-3": 2.6, "VIP>=3": 3.6 };
+// Edge COLOUR always = sign of the partial correlation (GGM weight):
+//   blue = positive partial cor, red = negative partial cor.
+// p-gain edges are marked ONLY by the gold halo + extra thickness (not colour),
+// so colour never contradicts the partial-correlation sign.
+const POS = "#1f78b4", NEG = "#e31a1c";
+const edgeColor = l => (l.cor >= 0 ? POS : NEG);
+const edgeWidth = l => l.pgainTier === 2 ? 4.0
+                     : l.pgainTier === 1 ? 2.6
+                     : (0.6 + 2.5 * Math.abs(l.cor || 0));
+const edgeGlow  = l => l.pgainTier === 2 ? "url(#eglowStrong)"
+                     : l.pgainTier === 1 ? "url(#eglowSugg)" : null;
+
+// ---- forces (original baseline) ----
+const link = d3.forceLink(GRAPH.links).id(d => d.id).distance(38);
+const charge = d3.forceManyBody();
+const center = d3.forceCenter(cx, cy);
+const collide = d3.forceCollide().radius(d => nodeR(d) + 2);
+const clusterX = d3.forceX(d => anchors[d.module].x);
+const clusterY = d3.forceY(d => anchors[d.module].y);
+
+const sim = d3.forceSimulation(GRAPH.nodes)
+  .force("link", link)
+  .force("charge", charge)
+  .force("center", center)
+  .force("collide", collide)
+  .force("clusterX", clusterX)
+  .force("clusterY", clusterY)
+  .on("tick", ticked);
+
+// Cluster-pull lever: t in [0,1].
+//   t = 0  -> free GGM (partial-correlation force only); original layout.
+//   t = 1  -> nodes pulled tightly onto their WGCNA cluster anchors.
+// Intermediate values interpolate the link / charge / centering forces so the
+// lever smoothly draws the WGCNA clusters together while the edges stay = the
+// partial correlations.
+const lerp = (a, b, t) => a + (b - a) * t;
+let pull = 0;
+function setClusterPull(t, reheat = true) {
+  pull = Math.max(0, Math.min(1, t));
+  link.strength(lerp(0.7, 0.04, pull));
+  charge.strength(lerp(-140, -25, pull));
+  center.strength(lerp(0.05, 0, pull));
+  clusterX.strength(0.6 * pull);
+  clusterY.strength(0.6 * pull);
+  clusterLabels.style("display", pull > 0.2 ? null : "none");
+  d3.select("#pullVal").text(Math.round(pull * 100) + "%");
+  if (reheat) sim.alpha(0.5).restart();
+}
+
+// ---- draw ----
+// Convex hulls around each WGCNA module (drawn first => behind everything).
+const hullG = root.append("g").attr("class", "hulls").style("display", "none");
+const hullLine = d3.line().curve(d3.curveCatmullRomClosed.alpha(0.6));
+let showHulls = false;
+function blobAround(pts, r) {
+  const mx = d3.mean(pts, p => p[0]), my = d3.mean(pts, p => p[1]);
+  const arr = d3.range(14).map(i => {
+    const a = 2 * Math.PI * i / 14;
+    return [mx + r * Math.cos(a), my + r * Math.sin(a)];
+  });
+  return hullLine(arr);
+}
+function drawHulls() {
+  const groups = d3.group(GRAPH.nodes, d => d.module);
+  const data = [];
+  groups.forEach((nodes, m) => {
+    const pts = nodes.map(d => [d.x, d.y]);
+    const mx = d3.mean(pts, p => p[0]), my = d3.mean(pts, p => p[1]);
+    if (pts.length >= 3) {
+      const hull = d3.polygonHull(pts);
+      const pad = 24;
+      const padded = hull.map(p => {
+        const dx = p[0] - mx, dy = p[1] - my, len = Math.hypot(dx, dy) || 1;
+        return [p[0] + pad * dx / len, p[1] + pad * dy / len];
+      });
+      data.push({ module: m, color: nodes[0].color, d: hullLine(padded) });
+    } else {
+      data.push({ module: m, color: nodes[0].color, d: blobAround(pts, 34) });
+    }
+  });
+  hullG.selectAll("path").data(data, d => d.module).join("path")
+    .attr("d", d => d.d)
+    .attr("fill", d => d.color).attr("fill-opacity", 0.13)
+    .attr("stroke", d => d.color).attr("stroke-opacity", 0.55)
+    .attr("stroke-width", 1.5).attr("stroke-linejoin", "round");
+}
+
+const linkSel = root.append("g")
+  .attr("stroke-linecap", "round")
+  .selectAll("line").data(GRAPH.links).join("line")
+  .attr("stroke", edgeColor).attr("stroke-width", edgeWidth)
+  // highlight p-gain edges: full opacity vs dimmed background edges
+  .attr("stroke-opacity", d => d.pgainTier >= 1 ? 1 : 0.22)
+  .attr("filter", edgeGlow)
+  .style("cursor", d => d.pgainTier >= 1 ? "pointer" : "default")
+  .on("mousemove", (ev, l) => {
+    const a = labelOf(l.source), b = labelOf(l.target);
+    let html = `<b>${a} &mdash; ${b}</b>`
+             + `<br/>partial cor: ${l.cor != null ? l.cor.toFixed(3) : "NA"}`;
+    if (l.pgainTier >= 1) {
+      const pos = l.pgainDir > 0;
+      const strong = l.pgainTier === 2;
+      html += `<br/><span class="tag" style="background:#E6AB02;color:#3a2f00">`
+            + `p-gain ${strong ? "strong (&ge;10&middot;B)" : "suggestive (&ge;10)"}</span>`
+            + `<br/>log2(${a}/${b}) vs MetS: <b style="color:${pos ? '#7cc4f0' : '#f2a3a3'}">`
+            + `${pos ? "positive &uarr; (blue)" : "negative &darr; (red)"}</b>`
+            + `<br/>p-gain: ${l.pgain != null ? d3.format(".3~s")(l.pgain) : "NA"}`;
+    }
+    tip.style("opacity", 1)
+       .style("left", (ev.clientX + 14) + "px").style("top", (ev.clientY + 14) + "px")
+       .html(html);
+  })
+  .on("mouseout", () => tip.style("opacity", 0));
+
+// draw p-gain edges last (on top of the dimmed background edges)
+linkSel.filter(d => d.pgainTier >= 1).raise();
+
+const nodeSel = root.append("g")
+  .selectAll("circle").data(GRAPH.nodes).join("circle")
+  .attr("r", nodeR)
+  .attr("fill", d => d.color)
+  .attr("stroke", d => vipStroke[d.vipTier])
+  .attr("stroke-width", d => vipStrokeW[d.vipTier])
+  .attr("filter", "url(#nshadow)")
+  .style("cursor", "pointer")
+  .call(d3.drag()
+    .on("start", (ev, d) => { if (!ev.active) sim.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+    .on("drag",  (ev, d) => { d.fx = ev.x; d.fy = ev.y; })
+    .on("end",   (ev, d) => { if (!ev.active) sim.alphaTarget(0); d.fx = null; d.fy = null; }))
+  .on("mouseover", (ev, d) => focusNode(d))
+  .on("mousemove", (ev, d) => {
+    const ms = GRAPH.modstats && GRAPH.modstats[d.module];
+    const mp = (ms && ms.p != null) ? ` (MetS p=${ms.p.toExponential(1)})` : "";
+    tip.style("opacity", 1)
+       .style("left", (ev.clientX + 14) + "px").style("top", (ev.clientY + 14) + "px")
+       .html(`<b>${d.label}</b><br/>module: ${d.module}${mp}`
+             + `<br/>VIP: ${d.vip != null ? d.vip.toFixed(2) : "NA"} (${d.vipTier})`
+             + `<br/>trait cor: ${d.traitCor != null ? d.traitCor.toFixed(3) : "NA"}`
+             + (d.diff ? `<br/><span class="tag">differential candidate</span>` : ""));
+  })
+  .on("mouseout", () => { tip.style("opacity", 0); unfocus(); });
+
+const labelSel = root.append("g")
+  .selectAll("text").data(GRAPH.nodes).join("text")
+  .attr("class", "nlabel").attr("dx", 9).attr("dy", 3)
+  .style("display", d => d.diff ? null : "none")
+  .text(d => d.label);
+
+// cluster name labels (only shown in clustered mode)
+const clusterLabels = root.append("g")
+  .selectAll("text").data(modules).join("text")
+  .attr("class", "clabel").attr("text-anchor", "middle")
+  .attr("x", m => anchors[m].x).attr("y", m => anchors[m].y - 13)
+  .style("display", "none").text(m => m);
+
+// Initialise force strengths at t = 0 (free GGM) now that clusterLabels exists.
+setClusterPull(0, false);
+
+// ---- neighbour spotlight on hover ----
+const idOf = x => (x && x.id != null) ? x.id : x;
+const labelById = new Map(GRAPH.nodes.map(n => [n.id, n.label]));
+const labelOf = x => (x && x.label != null) ? x.label : (labelById.get(idOf(x)) || idOf(x));
+const neighbors = new Map(GRAPH.nodes.map(n => [n.id, new Set([n.id])]));
+GRAPH.links.forEach(l => {
+  const s = idOf(l.source), t = idOf(l.target);
+  neighbors.get(s).add(t); neighbors.get(t).add(s);
+});
+function focusNode(d) {
+  const nb = neighbors.get(d.id);
+  nodeSel.style("opacity", n => nb.has(n.id) ? 1 : 0.1);
+  labelSel.style("opacity", n => nb.has(n.id) ? 1 : 0.1);
+  linkSel.style("opacity", l => (idOf(l.source) === d.id || idOf(l.target) === d.id) ? 0.95 : 0.04);
+}
+function unfocus() {
+  nodeSel.style("opacity", 1);
+  labelSel.style("opacity", 1);
+  linkSel.style("opacity", null);
+}
+
+function ticked() {
+  linkSel.attr("x1", d => d.source.x).attr("y1", d => d.source.y)
+         .attr("x2", d => d.target.x).attr("y2", d => d.target.y);
+  nodeSel.attr("cx", d => d.x).attr("cy", d => d.y);
+  labelSel.attr("x", d => d.x).attr("y", d => d.y);
+  if (showHulls) drawHulls();
+}
+
+// ---- controls ----
+// Continuous lever: drag to pull the WGCNA clusters together.
+const pullSlider = document.getElementById("pull");
+pullSlider.addEventListener("input", () => setClusterPull(pullSlider.value / 100));
+
+// Button: quick snap between fully free (0%) and fully clustered (100%).
+d3.select("#toggle").on("click", () => {
+  const t = pull > 0.5 ? 0 : 1;
+  pullSlider.value = Math.round(t * 100);
+  setClusterPull(t);
+});
+
+// Trait-association -> node size lever.
+const radiusSlider = document.getElementById("radius");
+radiusSlider.addEventListener("input", () => {
+  traitWeight = radiusSlider.value / 100;
+  d3.select("#radiusVal").text(radiusSlider.value + "%");
+  nodeSel.attr("r", nodeR);
+  collide.radius(d => nodeR(d) + 2);   // re-initialise collision radii
+  sim.alpha(0.3).restart();
+});
+
+let showAll = false;
+d3.select("#labels").on("change", function () {
+  showAll = this.checked;
+  labelSel.style("display", d => (showAll || d.diff) ? null : "none");
+});
+
+d3.select("#hulls").on("change", function () {
+  showHulls = this.checked;
+  hullG.style("display", showHulls ? null : "none");
+  if (showHulls) { drawHulls(); sim.alpha(0.15).restart(); }
+});
+
+// ---- legend ----
+const legend = d3.select("#legend");
+legend.html(
+  '<div class="lh">Nodes</div>' +
+  '<div class="row"><span class="swatch" style="background:#9ecae1;border-color:#999"></span>fill = WGCNA module</div>' +
+  '<div class="row"><span class="swatch" style="border-color:#B2182B"></span>outline = VIP &ge; 3</div>' +
+  '<div class="row"><span class="swatch" style="border-color:#FD8D3C"></span>VIP 2&ndash;3</div>' +
+  '<div class="row"><span class="swatch" style="border-color:#FDD0A2"></span>VIP 1&ndash;2</div>' +
+  '<div class="row"><span class="swatch" style="border-color:#cfcfcf"></span>not differential</div>' +
+  '<div class="row" style="color:#9098a6">size &prop; |trait correlation|</div>' +
+  '<div class="lh">Edge colour = partial cor</div>' +
+  '<div class="row"><span class="eline" style="border-color:#1f78b4"></span>blue = positive partial cor</div>' +
+  '<div class="row"><span class="eline" style="border-color:#e31a1c"></span>red = negative partial cor</div>' +
+  '<div class="lh">p-gain (gold halo)</div>' +
+  '<div class="row"><span class="eline" style="border-color:#1f78b4;border-top-width:4px;box-shadow:0 0 5px 2px #E6AB02"></span>strong (&ge;10&middot;B)</div>' +
+  '<div class="row"><span class="eline" style="border-color:#1f78b4;box-shadow:0 0 4px 1px #E6AB02"></span>suggestive (&ge;10)</div>' +
+  '<div class="row" style="color:#9098a6">ratio&rarr;MetS direction is in the tooltip</div>'
+);
+
+// ---- data tables (DataTables) ----
+const fmt = (v, n) => (v == null || isNaN(v)) ? "" : (+v).toFixed(n);
+const sci = (v, n) => (v == null || isNaN(v)) ? "" : (+v).toExponential(n);
+
+const nodeRows = GRAPH.nodes.map(d => [
+  d.label, d.module, d.vip, d.vipTier, d.traitCor, d.diff ? 1 : 0
+]);
+const pgainTierLabel = t => t === 2 ? "strong (\u226510\u00B7B)" : t === 1 ? "suggestive (\u226510)" : "";
+const edgeRows = GRAPH.links.map(l => [
+  labelOf(l.source), labelOf(l.target), l.cor, l.p, l.pgain,
+  l.pgainTier || 0,
+  (l.pgainTier >= 1) ? (l.pgainDir > 0 ? "+ ratio \u2191 MetS" : "\u2212 ratio \u2193 MetS") : ""
+]);
+
+let nodeDT, edgeDT;
+$(function () {
+  nodeDT = $('#nodeTable').DataTable({
+    data: nodeRows, pageLength: 25, order: [[2, 'desc']],
+    columns: [
+      { title: "Metabolite" },
+      { title: "WGCNA module" },
+      { title: "VIP", render: (v, t) => t === 'display' ? fmt(v, 2) : v },
+      { title: "VIP tier" },
+      { title: "Trait cor", render: (v, t) => t === 'display' ? fmt(v, 3) : v },
+      { title: "Differential", render: (v, t) => t === 'display' ? (v ? "yes" : "") : v }
+    ]
+  });
+  edgeDT = $('#edgeTable').DataTable({
+    data: edgeRows, pageLength: 25, order: [[4, 'desc']],
+    columns: [
+      { title: "From" },
+      { title: "To" },
+      { title: "Partial cor", render: (v, t) => t === 'display' ? fmt(v, 3) : v },
+      { title: "Edge p", render: (v, t) => t === 'display' ? sci(v, 1) : v },
+      { title: "p-gain", render: (v, t) => t === 'display' ? sci(v, 2) : v },
+      { title: "p-gain level", render: (v, t) => t === 'display' ? pgainTierLabel(v) : v },
+      { title: "Ratio \u2192 MetS" }
+    ]
+  });
+});
+
+// ---- drawer open/close + tabs ----
+const drawer = document.getElementById('drawer');
+document.getElementById('drawerHandle').addEventListener('click', () => drawer.classList.toggle('open'));
+document.getElementById('drawerClose').addEventListener('click', () => drawer.classList.remove('open'));
+function switchTab(nodes) {
+  document.getElementById('tabNodes').classList.toggle('active', nodes);
+  document.getElementById('tabEdges').classList.toggle('active', !nodes);
+  document.getElementById('paneNodes').classList.toggle('active', nodes);
+  document.getElementById('paneEdges').classList.toggle('active', !nodes);
+  // recalc column widths now the pane is visible
+  const dt = nodes ? nodeDT : edgeDT;
+  if (dt) dt.columns.adjust();
+}
+document.getElementById('tabNodes').addEventListener('click', () => switchTab(true));
+document.getElementById('tabEdges').addEventListener('click', () => switchTab(false));
+</script>
+</body>
+</html>
+
