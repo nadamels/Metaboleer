@@ -27,7 +27,7 @@ Open `out/09_export/network.html` in a browser (needs internet for the d3 / Data
 * `--annotation` (optional): `feature`, `super_pathway` (rows labelled `Xenobiotics` are zero-filled instead of
   imputed) and optionally `label` for display names. Alternatively `--xenobiotics-file` (one feature per line).
 
-## Pipeline (matches the flowchart)
+## Pipeline
 
 | Step | What | Output folder |
 |---|---|---|
