@@ -46,7 +46,7 @@ Open `out/09_export/network.html` in a browser (needs internet for the d3 / Data
 `p-gain = min(p_A, p_B) / p_ratio`, where `p_ratio` is the association of log2(A) − log2(B) with MetS.
 Edge colour in the viewer is the sign of the partial correlation; gold halo = p-gain; `pgainDir` = direction of the ratio in MetS.
 
-## Notes on the Python implementation
+## notes if you use!!!
 
 * R packages are replaced by native implementations: limma's moderated t (`fitFDist` + `squeezeVar`),
   single-response OPLS-DA (one orthogonal component by default, `--vip-cutoff`), WGCNA soft-threshold/TOM,
